@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+# Signaux bruts volumineux (PS2 ≈ 80 Mo) : à télécharger, voir data/README.md
+data/PS2.txt
+data/FS1.txt

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Condition de la valve — prédiction par cycle</title>
+<style>
+  :root { --bg:#f4f6fa; --card:#fff; --ink:#1b2430; --muted:#6b7686; --line:#e3e8ef; --ok:#1f9d55; --ko:#d64545; --brand:#2f5fd0; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f141b; --card:#171e28; --ink:#e8edf4; --muted:#93a0b2; --line:#2a3342; --brand:#6d92ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 18px 60px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+  form { display:flex; gap:10px; flex-wrap:wrap; }
+  input[type=number] { flex:1; min-width:140px; font-size:1.1rem; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  button { font-size:1rem; padding:12px 18px; border-radius:10px; border:0; cursor:pointer; background:var(--brand); color:#fff; font-weight:600; }
+  button.ghost { background:transparent; color:var(--brand); border:1px solid var(--brand); }
+  .verdict { display:flex; align-items:center; gap:14px; }
+  .badge { font-weight:800; font-size:1.25rem; padding:10px 16px; border-radius:10px; color:#fff; }
+  .badge.ok { background:var(--ok); } .badge.ko { background:var(--ko); }
+  .meta { color:var(--muted); font-size:.92rem; margin-top:12px; line-height:1.6; }
+  .bar { height:12px; background:var(--line); border-radius:99px; overflow:hidden; margin-top:6px; }
+  .bar > span { display:block; height:100%; background:var(--ok); }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; margin-top:8px; }
+  td, th { text-align:left; padding:7px 4px; border-bottom:1px solid var(--line); }
+  .pos { color:var(--ok); font-weight:600; } .neg { color:var(--ko); font-weight:600; }
+  .err { color:var(--ko); }
+  .check { font-weight:700; }
+  footer { color:var(--muted); font-size:.85rem; margin-top:24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Condition de la valve</h1>
+  <p class="sub">Entrez un numéro de cycle (1 à {{ n_cycles }}) : le modèle indique si la valve est optimale (100 %) ou non.</p>
+
+  <div class="card">
+    <form id="f">
+      <input id="n" type="number" min="1" max="{{ n_cycles }}" value="1" required aria-label="Numéro de cycle">
+      <button type="submit">Prédire</button>
+      <button type="button" class="ghost" id="rnd">Cycle aléatoire</button>
+    </form>
+  </div>
+
+  <div id="out"></div>
+  <footer>Modèle : régression logistique sur 10 variables extraites des signaux de pression (PS2) et de débit (FS1). Projet ML — EFREI ING2-BDML.</footer>
+</main>
+<script>
+const out = document.getElementById('out'), inp = document.getElementById('n'), N = {{ n_cycles }};
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function run(n){
+  out.innerHTML = '<div class="card">Calcul…</div>';
+  try {
+    const r = await fetch('/api/predict/' + n); const d = await r.json();
+    if(!r.ok){ out.innerHTML = '<div class="card err">' + esc(d.error || 'Erreur') + '</div>'; return; }
+    const pct = (d.probability_optimal * 100).toFixed(1);
+    let truth = '';
+    if (d.true_valve_condition !== undefined) {
+      truth = '<div class="meta">Valeur réelle : valve à <b>' + d.true_valve_condition + ' %</b> (' + (d.true_optimal ? 'optimale' : 'non optimale') + ') — ' +
+              '<span class="check ' + (d.correct ? 'pos' : 'neg') + '">' + (d.correct ? '✔ prédiction correcte' : '✘ prédiction erronée') + '</span></div>';
+    }
+    const rows = d.contributions.map(c => '<tr><td>' + esc(c.feature) + '</td><td>' + c.value + '</td><td class="' + (c.contribution >= 0 ? 'pos' : 'neg') + '">' + (c.contribution >= 0 ? '+' : '') + c.contribution + '</td></tr>').join('');
+    out.innerHTML =
+      '<div class="card"><div class="verdict"><span class="badge ' + (d.optimal ? 'ok' : 'ko') + '">' + esc(d.label) + '</span><div><b>Cycle ' + d.cycle + '</b><br><span class="meta">' + esc(d.split) + '</span></div></div>' +
+      '<div class="meta" style="margin-top:16px">Probabilité que la valve soit optimale : <b>' + pct + ' %</b></div><div class="bar"><span style="width:' + pct + '%"></span></div>' + truth + '</div>' +
+      '<div class="card"><b>Variables qui ont le plus pesé dans la décision</b><div class="meta">Contribution positive → pousse vers « optimal », négative → vers « non optimal ».</div>' +
+      '<table><tr><th>Variable</th><th>Valeur</th><th>Contribution</th></tr>' + rows + '</table></div>';
+  } catch(e) { out.innerHTML = '<div class="card err">Impossible de joindre le serveur.</div>'; }
+}
+document.getElementById('f').addEventListener('submit', e => { e.preventDefault(); run(parseInt(inp.value, 10)); });
+document.getElementById('rnd').addEventListener('click', () => { inp.value = 1 + Math.floor(Math.random() * N); run(inp.value); });
+run(1);
+</script>
+</body>
+</html>

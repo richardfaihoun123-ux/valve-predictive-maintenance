@@ -1,0 +1,26 @@
+{
+  "cv_f1_mean": 1.0,
+  "cv_accuracy_mean": 1.0,
+  "cv_roc_auc_mean": 1.0,
+  "test_accuracy": 1.0,
+  "test_precision": 1.0,
+  "test_recall": 1.0,
+  "test_f1": 1.0,
+  "test_roc_auc": 1.0,
+  "n_train": 2000,
+  "n_test": 205,
+  "selected_features": {
+    "PS2_slope": 0.054252722905863325,
+    "PS2_argmax": 0.0015492316832516873,
+    "PS2_diff_max": 1.5069538421292914,
+    "PS2_seg1_mean": 17.389540103207615,
+    "PS2_seg1_std": -8.273409890683864,
+    "FS1_p95": -0.5108700438455542,
+    "FS1_diff_max": 1.3259255031673782,
+    "FS1_seg1_mean": 4.564077503415842,
+    "FS1_seg1_std": -5.147146987903758,
+    "FS1_seg3_std": -0.1533992246458119
+  },
+  "n_features_total": 80,
+  "n_features_after_corr_filter": 40
+}
